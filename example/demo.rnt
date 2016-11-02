@@ -1,0 +1,31 @@
+stop "../vg.so" dynload rec
+
+: exit vgstop quit ;
+: blue 110 148 171 255 ;
+: red 255 0 0 255 ;
+: beige 177 182 150 255 ;
+: navy 49 95 128 255 ;
+: green 255 0 0 255 ;
+: white 255 255 255 255 ;
+: circle 40 vgcirc vgf ; 
+
+: cb 
+blue vgclr 
+white vgfc
+vgw 0.5 * 80 - vgh 0.5 * circle 
+beige vgfc
+vgw 0.5 * vgh 0.5 * circle 
+navy vgfc
+vgw 0.5 * 80 + vgh 0.5 * circle ; 
+
+: sq
+white vgclr
+red vgfc
+10 10 80 80 vgrect vgf 
+;
+
+stop
+
+"type 'exit' to leave" say
+
+_sq vgstrt
