@@ -76,7 +76,7 @@ static void * run_loop(void *ud)
 	glfwSwapInterval(0);
 	glfwSetTime(0);
     while(data->run) {
-        while(runt_get_state(vm, RUNT_MODE_LOCK) == RUNT_ON);
+        /* while(runt_get_state(vm, RUNT_MODE_LOCK) == RUNT_ON); */
 		double mx, my, t, dt;
 		int fbWidth, fbHeight;
 		float pxRatio;
@@ -91,9 +91,9 @@ static void * run_loop(void *ud)
 		glViewport(0, 0, fbWidth, fbHeight);
 
 		nvgBeginFrame(data->vg, data->win_width, data->win_height, pxRatio);
-        runt_set_state(vm, RUNT_MODE_LOCK, RUNT_ON);
+        /*runt_set_state(vm, RUNT_MODE_LOCK, RUNT_ON); */
             runt_cell_id_exec(vm, data->callback_id);
-        runt_set_state(vm, RUNT_MODE_LOCK, RUNT_OFF);
+        /* runt_set_state(vm, RUNT_MODE_LOCK, RUNT_OFF); */
         nvgEndFrame(data->vg);
 
 		glfwSwapBuffers(data->window);
@@ -131,6 +131,20 @@ runt_int vg_fill(runt_vm *vm, runt_ptr p)
     nvgFill(data->vg);
 }
 
+runt_int vg_stroke(runt_vm *vm, runt_ptr p)
+{
+    vg_data *data = (vg_data *)runt_to_cptr(p);
+    nvgStroke(data->vg);
+}
+
+runt_int vg_stroke_width(runt_vm *vm, runt_ptr p)
+{
+    vg_data *data = (vg_data *)runt_to_cptr(p);
+    runt_stacklet *s = runt_pop(vm);
+    runt_float width = s->f;
+    nvgStrokeWidth(data->vg, width);
+}
+
 runt_int vg_fillcolor(runt_vm *vm, runt_ptr p)
 {
     vg_data *data = (vg_data *)runt_to_cptr(p);
@@ -142,6 +156,19 @@ runt_int vg_fillcolor(runt_vm *vm, runt_ptr p)
         rgba[3 - i] = s->f;
     }
     nvgFillColor(data->vg, nvgRGBA(rgba[0], rgba[1], rgba[2], rgba[3]));
+}
+
+runt_int vg_strokecolor(runt_vm *vm, runt_ptr p)
+{
+    vg_data *data = (vg_data *)runt_to_cptr(p);
+    runt_stacklet *s;
+    runt_float rgba[4];
+    runt_uint i;
+    for(i = 0; i < 4; i++) {
+        s = runt_pop(vm);
+        rgba[3 - i] = s->f;
+    }
+    nvgStrokeColor(data->vg, nvgRGBA(rgba[0], rgba[1], rgba[2], rgba[3]));
 }
 
 runt_int vg_clear(runt_vm *vm, runt_ptr p)
@@ -250,7 +277,10 @@ void vg_load_dict(runt_vm *vm)
     vg_define(data, vm, "vgcirc", 6, vg_circle, p);
     vg_define(data, vm, "vgrect", 6, vg_rect, p);
     vg_define(data, vm, "vgfc", 4, vg_fillcolor, p);
+    vg_define(data, vm, "vgsc", 4, vg_strokecolor, p);
     vg_define(data, vm, "vgf", 3, vg_fill, p);
+    vg_define(data, vm, "vgs", 3, vg_stroke, p);
+    vg_define(data, vm, "vgsw", 4, vg_stroke_width, p);
     vg_define(data, vm, "vgstrt", 6, start_nanovg, p);
     vg_define(data, vm, "vgclr", 5, vg_clear, p);
     vg_define(data, vm, "vgstop", 6, stop_nanovg, p);

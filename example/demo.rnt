@@ -19,9 +19,11 @@ navy vgfc
 vgw 0.5 * 80 + vgh 0.5 * circle ; 
 
 : sq
+4.0 vgsw
 white vgclr
 red vgfc
-10 10 80 80 vgrect vgf 
+blue vgsc
+10 10 80 80 vgrect vgf vgs
 ;
 
 stop
