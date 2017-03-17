@@ -21,9 +21,7 @@ int main()
     runt_memory_pool_set(&vm, mem, MEM_SIZE);
 
     runt_load_stdlib(&vm);
-
-
-    vg_load_dict(&vm);
+    runt_load_vg(&vm);
 
     runt_compile(&vm, ": cb");
     runt_compile(&vm, "255 255 255 255 vgclr");

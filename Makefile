@@ -1,19 +1,31 @@
 default: hello
-CFLAGS = -O3 -ffast-math -fPIC -Inanovg -I.
+CFLAGS = -O3 -ffast-math -fPIC -Inanovg -I. -Wall 
+CFLAGS += -Wno-implicit-function-declaration
 LDFLAGS = -lm -lGL -lglfw -lrunt -ldl -lpthread
+
+NAME=vg
 
 OBJ = nanovg/nanovg.o vg.o
 
-default: vg.so hello 
+default: librunt_vg.a hello rnt_$(NAME)
 
 %.o: %.c
-	$(CC) $^ -c $(CFLAGS) -o $@ 
+	$(CC) $^ -c $(CFLAGS) -shared -fPIC -o $@ 
 
-vg.so: $(OBJ)
-	ld $(CFLAGS) -shared -fPIC -o $@ $(OBJ) $(LDFLAGS)
+librunt_$(NAME).a: $(OBJ)
+	$(AR) rcs $@ $(OBJ) 
 
-hello: example/hello.c nanovg/nanovg.o vg.o
+rnt_$(NAME): parse.c $(OBJ)
+	$(CC) $(CFLAGS) -o $@ parse.c $(OBJ) $(LDFLAGS)
+
+hello: example/hello.c $(OBJ)
 	$(CC) $(CFLAGS) example/hello.c -o hello $(OBJ) $(LDFLAGS)
 
+install: librunt_$(NAME).a
+	mkdir -p ~/.runt/lib
+	mkdir -p ~/.runt/bin
+	cp $< ~/.runt/lib
+	cp rnt_$(NAME) ~/.runt/bin/
+
 clean: 
-	rm -rf vg.so hello $(OBJ)
+	rm -rf librunt_$(NAME).a hello rnt_$(NAME) $(OBJ)

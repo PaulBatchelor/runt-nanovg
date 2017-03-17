@@ -14,9 +14,9 @@ typedef struct vg_data {
     runt_vm *vm;
     pthread_t thread;
     runt_uint run;
-    runt_int lock;
     runt_int win_width;
     runt_int win_height;
+    char magic;
 } vg_data;
 
 void errorcb(int error, const char* desc)
@@ -40,7 +40,7 @@ static void * run_loop(void *ud)
 
 	if (!glfwInit()) {
 		printf("Failed to init GLFW.");
-		return;
+		pthread_exit(NULL);
 	}
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
@@ -50,7 +50,7 @@ static void * run_loop(void *ud)
 
 	if (!data->window) {
 		glfwTerminate();
-        return RUNT_NOT_OK;
+		pthread_exit(NULL);
 	}
 
 	glfwSetKeyCallback(data->window, key);
@@ -80,7 +80,6 @@ static void * run_loop(void *ud)
 		double mx, my, t, dt;
 		int fbWidth, fbHeight;
 		float pxRatio;
-        int x, y;
 		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT);
 
 		glfwGetCursorPos(data->window, &mx, &my);
@@ -91,9 +90,7 @@ static void * run_loop(void *ud)
 		glViewport(0, 0, fbWidth, fbHeight);
 
 		nvgBeginFrame(data->vg, data->win_width, data->win_height, pxRatio);
-        /*runt_set_state(vm, RUNT_MODE_LOCK, RUNT_ON); */
-            runt_cell_id_exec(vm, data->callback_id);
-        /* runt_set_state(vm, RUNT_MODE_LOCK, RUNT_OFF); */
+        runt_cell_id_exec(vm, data->callback_id);
         nvgEndFrame(data->vg);
 
 		glfwSwapBuffers(data->window);
@@ -104,7 +101,7 @@ static void * run_loop(void *ud)
 	nvgDeleteGL2(data->vg);
 
 	glfwTerminate();
-    pthread_exit(NULL);
+    pthread_exit(0);
 }
 
 runt_int vg_circle(runt_vm *vm, runt_ptr p)
@@ -129,12 +126,14 @@ runt_int vg_fill(runt_vm *vm, runt_ptr p)
 {
     vg_data *data = (vg_data *)runt_to_cptr(p);
     nvgFill(data->vg);
+    return RUNT_OK;
 }
 
 runt_int vg_stroke(runt_vm *vm, runt_ptr p)
 {
     vg_data *data = (vg_data *)runt_to_cptr(p);
     nvgStroke(data->vg);
+    return RUNT_OK;
 }
 
 runt_int vg_stroke_width(runt_vm *vm, runt_ptr p)
@@ -143,19 +142,23 @@ runt_int vg_stroke_width(runt_vm *vm, runt_ptr p)
     runt_stacklet *s = runt_pop(vm);
     runt_float width = s->f;
     nvgStrokeWidth(data->vg, width);
+    return RUNT_OK;
 }
 
 runt_int vg_fillcolor(runt_vm *vm, runt_ptr p)
 {
-    vg_data *data = (vg_data *)runt_to_cptr(p);
     runt_stacklet *s;
     runt_float rgba[4];
     runt_uint i;
+    runt_int rc;
+    vg_data *data = (vg_data *)runt_to_cptr(p);
     for(i = 0; i < 4; i++) {
-        s = runt_pop(vm);
+        rc = runt_ppop(vm, &s);
+        RUNT_ERROR_CHECK(rc);
         rgba[3 - i] = s->f;
     }
     nvgFillColor(data->vg, nvgRGBA(rgba[0], rgba[1], rgba[2], rgba[3]));
+    return RUNT_OK;
 }
 
 runt_int vg_strokecolor(runt_vm *vm, runt_ptr p)
@@ -169,19 +172,23 @@ runt_int vg_strokecolor(runt_vm *vm, runt_ptr p)
         rgba[3 - i] = s->f;
     }
     nvgStrokeColor(data->vg, nvgRGBA(rgba[0], rgba[1], rgba[2], rgba[3]));
+    return RUNT_OK;
 }
 
 runt_int vg_clear(runt_vm *vm, runt_ptr p)
 {
+    runt_int rc;
     runt_stacklet *s;
     runt_float rgba[4];
     runt_uint i;
     for(i = 0; i < 4; i++) {
-        s = runt_pop(vm);
+        rc = runt_ppop(vm, &s);
+        RUNT_ERROR_CHECK(rc);
         rgba[3 - i] = s->f;
     }
     NVGcolor bgcolor = nvgRGBA(rgba[0], rgba[1], rgba[2], rgba[3]);
     glClearColor(bgcolor.r, bgcolor.g, bgcolor.b, bgcolor.a);
+    return RUNT_OK;
 }
 
 static runt_int start_nanovg(runt_vm *vm, runt_ptr p)
@@ -265,14 +272,14 @@ static void vg_define(vg_data *data,
     runt_word_bind_ptr(vm, word_id, p);
 }
 
-void vg_load_dict(runt_vm *vm)
+runt_int runt_load_vg(runt_vm *vm)
 {
     vg_data *data;
-    runt_malloc(vm, sizeof(vg_data), (void *)&data);
+    runt_malloc(vm, sizeof(vg_data), &data);
 
     data->vm = vm;
-    data->lock = 0;
     runt_ptr p = runt_mk_cptr(vm, data);
+    data->magic = 123;
 
     vg_define(data, vm, "vgcirc", 6, vg_circle, p);
     vg_define(data, vm, "vgrect", 6, vg_rect, p);
@@ -287,10 +294,11 @@ void vg_load_dict(runt_vm *vm)
     vg_define(data, vm, "vgswp", 5, vg_swap, p);
     vg_define(data, vm, "vgw", 3, vg_width, p);
     vg_define(data, vm, "vgh", 3, vg_height, p);
+    return RUNT_OK;
 }
 
 void runt_plugin_init(runt_vm *vm)
 {
     runt_print(vm, "Loading nanovg plugin\n");
-    vg_load_dict(vm);
+    runt_load_vg(vm);
 }

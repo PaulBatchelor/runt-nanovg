@@ -1,5 +1,4 @@
-stop "../vg.so" dynload rec
-
+[
 : exit vgstop quit ;
 : blue 110 148 171 255 ;
 : red 255 0 0 255 ;
@@ -25,9 +24,8 @@ red vgfc
 blue vgsc
 10 10 80 80 vgrect vgf vgs
 ;
-
-stop
+]
 
 "type 'exit' to leave" say
 
-_sq vgstrt
+_cb vgstrt
